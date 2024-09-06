@@ -43,6 +43,12 @@ if (!class_exists('MG_Anime_List')) {
 
             $this->define_constants();
             add_action('admin_menu', array($this, 'add_menu'));
+            require_once(MG_ANIME_LIST_PATH . 'functions/functions.php');
+            add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+            add_action('wp_ajax_fetch_anime_data', array($this, 'fetch_anime_data'));
+
+            require_once(MG_ANIME_LIST_PATH . 'post-types/mg-anime-list.cpt.php');
+            $mg_anime_list_cpt = new MG_ANIME_LIST_CPT();
         }
 
         public function define_constants()
@@ -78,7 +84,7 @@ if (!class_exists('MG_Anime_List')) {
         {
             add_menu_page(
                 "MG Anime List Options",
-                "Anime List",
+                "Anime List Options",
                 "manage_options",
                 "mg-anime-list-admin",
                 array($this, "mg_anime_list_settings_page"),
@@ -93,8 +99,35 @@ if (!class_exists('MG_Anime_List')) {
         }
 
         public function mg_anime_list_settings_page()
+        { ?>
+            <div class="wrap">
+                <h1>MG Anime List</h1>
+                <p>
+                    This plugin will fetch 5 random animes from the Jikan API and create a post for each one.
+                </p>
+                <button id="fetch-anime" class="button button-primary">Fetch 5 Random Animes</button>
+                <div id="anime-result"></div>
+            </div>
+<?php
+        }
+
+        // Enqueue the script for AJAX
+        public function enqueue_scripts()
         {
-            echo '<h1>MG Anime List</h1>';
+            wp_enqueue_script(
+                'mg-anime-list-script',
+                MG_ANIME_LIST_URL . 'assets/js/anime-list.js',
+                array('jquery'), // Include jQuery
+                MG_ANIME_LIST_VERSION,
+                true
+            );
+
+            // Pass AJAX URL to the script
+            wp_localize_script(
+                'mg-anime-list-script',
+                'mg_anime_list_ajax',
+                array('ajax_url' => admin_url('admin-ajax.php'))
+            );
         }
     }
 }
