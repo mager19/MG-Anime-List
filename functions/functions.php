@@ -1,8 +1,9 @@
 <?php
 function fetch_anime_data()
 {
+
     // URL de la API de animes
-    $url = 'https://kitsu.io/api/edge/anime';
+    $url = 'https://kitsu.io/api/edge/anime?page[limit]=3';
 
     // Realizamos la petición a la API
     $response = wp_remote_get($url);
@@ -16,45 +17,77 @@ function fetch_anime_data()
     $body = wp_remote_retrieve_body($response);
     $data = json_decode($body, true);
 
-    // Seleccionamos 5 animes aleatorios
-    $random_animes = array_rand($data['data'], 5);
-    $selected_animes = array();
+    foreach ($data['data'] as $anime) {
+        $post_title = isset($anime['attributes']['titles']['en']) ? $anime['attributes']['titles']['en'] : 'No title';
+        $post_content = isset($anime['attributes']['synopsis']) ? $anime['attributes']['synopsis'] : 'No synopsis';
+        $cover_image_url = isset($anime['attributes']['coverImage']['original']) ? $anime['attributes']['coverImage']['original'] : '';
 
-    foreach ($random_animes as $index) {
-        $anime = $data['data'][$index];
-
-        // Recogemos los datos requeridos
-        $anime_data = array(
-            'id' => $anime['id'],
-            'synopsis' => $anime['attributes']['synopsis'],
-            'title' => isset($anime['attributes']['titles']['en']) ? $anime['attributes']['titles']['en'] : 'Title not available',
-            'posterImage' => $anime['attributes']['posterImage']['medium'],
-            'coverImage' => isset($anime['attributes']['coverImage']['original']) ? $anime['attributes']['coverImage']['original'] : '',
-            'categories' => array() // Aquí almacenaremos las categorías
+        // Crear el post
+        $post_data = array(
+            'post_title'   => $post_title,
+            'post_content' => $post_content,
+            'post_status'  => 'publish',
+            'post_type'    => 'mg-anime-list',
         );
 
-        // Obtener categorías de la API del anime
-        $categories_url = 'https://kitsu.io/api/edge/anime/' . $anime['id'] . '/categories';
-        $categories_response = wp_remote_get($categories_url);
+        $post_id = wp_insert_post($post_data);
 
-        if (!is_wp_error($categories_response)) {
-            $categories_body = wp_remote_retrieve_body($categories_response);
-            $categories_data = json_decode($categories_body, true);
-
-            // Extraemos solo las dos primeras categorías
-            $categories = array_slice(array_map(function ($category) {
-                return $category['attributes']['title'];
-            }, $categories_data['data']), 0, 2);
-
-            $anime_data['categories'] = $categories;
+        if (is_wp_error($post_id)) {
+            wp_send_json_error('Failed to create post');
+            return;
         }
 
-        // Añadimos los datos de este anime al array final
-        $selected_animes[] = $anime_data;
+        // Subir la imagen y asignarla al post
+        if ($cover_image_url) {
+            $image_id = upload_image_from_url($cover_image_url, $post_id);
+            if (!is_wp_error($image_id)) {
+                set_post_thumbnail($post_id, $image_id);
+            }
+        }
     }
 
+
     // Enviar los datos al frontend
-    wp_send_json_success($selected_animes);
+    wp_send_json_success('Posts created successfully.');
 }
 add_action('wp_ajax_fetch_anime_data', 'fetch_anime_data');
 add_action('wp_ajax_nopriv_fetch_anime_data', 'fetch_anime_data');
+
+// Función para subir una imagen desde una URL
+function upload_image_from_url($image_url, $post_id)
+{
+    $response = wp_remote_get($image_url);
+
+    if (is_wp_error($response)) {
+        return $response;
+    }
+
+    $image_data = wp_remote_retrieve_body($response);
+
+    $upload = wp_upload_bits(basename($image_url), null, $image_data);
+
+    if ($upload['error']) {
+        return new WP_Error('upload_error', $upload['error']);
+    }
+
+    $wp_filetype = wp_check_filetype($upload['file']);
+    $attachment = array(
+        'post_mime_type' => $wp_filetype['type'],
+        'post_title'     => sanitize_file_name(basename($upload['file'])),
+        'post_content'   => '',
+        'post_status'    => 'inherit'
+    );
+
+    $attachment_id = wp_insert_attachment($attachment, $upload['file'], $post_id);
+
+    if (is_wp_error($attachment_id)) {
+        return $attachment_id;
+    }
+
+    require_once(ABSPATH . 'wp-admin/includes/image.php');
+
+    $attachment_data = wp_generate_attachment_metadata($attachment_id, $upload['file']);
+    wp_update_attachment_metadata($attachment_id, $attachment_data);
+
+    return $attachment_id;
+}

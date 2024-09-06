@@ -103,9 +103,9 @@ if (!class_exists('MG_Anime_List')) {
             <div class="wrap">
                 <h1>MG Anime List</h1>
                 <p>
-                    This plugin will fetch 5 random animes from the Jikan API and create a post for each one.
+                    This plugin will fetch 3 random animes from the Jikan API and create a post for each one.
                 </p>
-                <button id="fetch-anime" class="button button-primary">Fetch 5 Random Animes</button>
+                <button id="fetch-anime" class="button button-primary">Fetch 3 Random Animes</button>
                 <div id="anime-result"></div>
             </div>
 <?php
@@ -126,7 +126,10 @@ if (!class_exists('MG_Anime_List')) {
             wp_localize_script(
                 'mg-anime-list-script',
                 'mg_anime_list_ajax',
-                array('ajax_url' => admin_url('admin-ajax.php'))
+                array(
+                    'ajax_url' => admin_url('admin-ajax.php'),
+                    'nonce'   => wp_create_nonce('wp_rest')
+                )
             );
         }
     }

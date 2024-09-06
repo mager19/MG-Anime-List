@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(mg_anime_list_ajax.ajax_url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-WP-Nonce': mg_anime_list_ajax.nonce
             },
             body: new URLSearchParams({
                 action: 'fetch_anime_data'
@@ -12,26 +13,11 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Iteramos sobre los animes y los mostramos
-                    let resultDiv = document.getElementById('anime-result');
-                    resultDiv.innerHTML = ''; // Limpiamos el contenido anterior
+                    document.getElementById('anime-result').innerText = 'Data fetched and posts created successfully.';
 
-                    data.data.forEach(anime => {
-                        let animeHtml = `
-                        <div>
-                            <h2>${anime.title}</h2>
-                            <p><strong>ID:</strong> ${anime.id}</p>
-                            <p><strong>Synopsis:</strong> ${anime.synopsis}</p>
-                            <p><strong>Poster:</strong> <img src="${anime.posterImage}" alt="${anime.title}"></p>
-                            <p><strong>Cover Image:</strong> <img src="${anime.coverImage}" alt="${anime.title}"></p>
-                            <p><strong>Categories:</strong> ${anime.categories.join(', ')}</p>
-                        </div>
-                        <hr>
-                    `;
-                        resultDiv.innerHTML += animeHtml;
-                    });
+                    console.log(data);
                 } else {
-                    document.getElementById('anime-result').innerHTML = '<p>Error fetching anime data</p>';
+                    document.getElementById('anime-result').innerText = 'Error fetching data.';
                 }
             })
             .catch(error => {
